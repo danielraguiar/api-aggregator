@@ -1,0 +1,20 @@
+spring:
+  application:
+    name: api-aggregator
+
+kenect:
+  api:
+    base-url: https://candidate-challenge-api-489237493095.us-central1.run.app
+    bearer-token: J7ybt6jv6pdJ4gyQP9gNonsY
+    timeout:
+      connect: 5000
+      read: 30000
+      write: 30000
+
+server:
+  port: 8080
+
+logging:
+  level:
+    com.kenect.api_aggregator: INFO
+    org.springframework.web: INFO

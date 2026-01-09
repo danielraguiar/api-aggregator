@@ -10,6 +10,7 @@ Production-ready Spring Boot REST API that aggregates contact information from e
 - Source filtering (extensible for multiple sources)
 - Bean Validation (Jakarta Validation) for input parameters
 - In-memory caching to reduce external API calls
+- Retry logic with exponential backoff for API resilience
 - Health check endpoints (Spring Boot Actuator + custom)
 - Comprehensive error handling with detailed validation messages
 - Full test coverage (unit + integration tests)
@@ -21,6 +22,7 @@ Production-ready Spring Boot REST API that aggregates contact information from e
 - Java 17
 - Spring Boot 3.2.1
 - Spring WebFlux (WebClient)
+- Spring Retry (with exponential backoff)
 - Spring Boot Actuator
 - Spring Cache + Caffeine
 - Lombok
@@ -210,6 +212,81 @@ Provides detailed health information including:
 curl http://localhost:8080/health
 curl http://localhost:8080/actuator/health
 ```
+
+## Retry Logic
+
+The application implements automatic retry with exponential backoff for external API calls, making it resilient to transient failures.
+
+### Configuration
+
+**Retry Strategy:**
+- **Max Attempts**: 3
+- **Initial Delay**: 1 second
+- **Max Delay**: 5 seconds
+- **Backoff Multiplier**: 2.0 (exponential)
+
+**Retry Sequence:**
+1. **First attempt**: Immediate
+2. **Second attempt**: After 1 second
+3. **Third attempt**: After 2 seconds (1s × 2.0)
+4. **Failure**: After all retries exhausted
+
+### How It Works
+
+The `@Retryable` annotation on the API client automatically retries failed calls:
+
+```java
+@Retryable(
+    retryFor = {WebClientResponseException.class, ExternalApiException.class},
+    maxAttempts = 3,
+    backoff = @Backoff(delay = 1000, multiplier = 2.0, maxDelay = 5000)
+)
+public ExternalContactResponse fetchContactsPage(int page) {
+    // API call with automatic retry
+}
+```
+
+### Fallback Mechanism
+
+If all retries fail, the `@Recover` method handles graceful degradation:
+
+```java
+@Recover
+public ExternalContactResponse recoverFromApiFailure(Exception ex, int page) {
+    // Logged and thrown as ExternalApiException
+    throw new ExternalApiException("Failed after multiple retry attempts");
+}
+```
+
+### Benefits
+
+✅ **Resilience**: Handles transient network failures  
+✅ **Performance**: Exponential backoff prevents API overload  
+✅ **Observability**: Detailed logging of retry attempts  
+✅ **Configurable**: Easily adjust retry parameters  
+✅ **Automatic**: No code changes needed for retry logic  
+
+### Use Cases
+
+- **Network glitches**: Temporary connectivity issues
+- **Rate limiting**: API throttling responses
+- **Service restarts**: Momentary service unavailability
+- **Load balancer changes**: Connection drops during deployments
+
+### Configuration (application.yaml)
+
+```yaml
+retry:
+  max-attempts: 3
+  initial-delay: 1000
+  max-delay: 5000
+  multiplier: 2.0
+```
+
+**Adjust based on your needs:**
+- Increase `max-attempts` for more resilience
+- Increase `initial-delay` to reduce API load
+- Adjust `multiplier` for faster/slower backoff
 
 ## Building and Running
 

@@ -10,6 +10,7 @@ Production-ready Spring Boot REST API that aggregates contact information from e
 - Source filtering (extensible for multiple sources)
 - Bean Validation (Jakarta Validation) for input parameters
 - In-memory caching to reduce external API calls
+- Health check endpoints (Spring Boot Actuator + custom)
 - Comprehensive error handling with detailed validation messages
 - Full test coverage (unit + integration tests)
 - Clean architecture with separation of concerns
@@ -20,6 +21,7 @@ Production-ready Spring Boot REST API that aggregates contact information from e
 - Java 17
 - Spring Boot 3.2.1
 - Spring WebFlux (WebClient)
+- Spring Boot Actuator
 - Spring Cache + Caffeine
 - Lombok
 - JUnit 5 + Mockito
@@ -140,6 +142,73 @@ The API implements Bean Validation (Jakarta Validation) for request parameters. 
 GET /contacts?page=0           # Error: Page number must be greater than 0
 GET /contacts?size=150         # Error: Page size must not exceed 100
 GET /contacts?source=INVALID   # Error: Invalid enum value
+```
+
+## Health Check Endpoints
+
+The application provides health check endpoints for monitoring and container orchestration.
+
+### Simple Health Check
+
+**Endpoint:** `GET /health`
+
+**Response:**
+```json
+{
+  "status": "UP",
+  "timestamp": "2026-01-09T15:30:00.000Z",
+  "application": "api-aggregator"
+}
+```
+
+### Actuator Health Check
+
+**Endpoint:** `GET /actuator/health`
+
+Provides detailed health information including:
+- Application status
+- Disk space
+- External API connectivity (custom indicator)
+
+**Response:**
+```json
+{
+  "status": "UP",
+  "components": {
+    "diskSpace": {
+      "status": "UP",
+      "details": {
+        "total": 500000000000,
+        "free": 250000000000,
+        "threshold": 10485760,
+        "path": "/path/to/app",
+        "exists": true
+      }
+    },
+    "externalApiHealthIndicator": {
+      "status": "UP",
+      "details": {
+        "externalApi": "Kenect Labs API",
+        "status": "reachable"
+      }
+    },
+    "ping": {
+      "status": "UP"
+    }
+  }
+}
+```
+
+**Use Cases:**
+- **Kubernetes/Docker**: Liveness and readiness probes
+- **Load Balancers**: Health checks before routing traffic
+- **Monitoring**: Application status tracking
+- **CI/CD**: Deployment verification
+
+**Example Usage:**
+```bash
+curl http://localhost:8080/health
+curl http://localhost:8080/actuator/health
 ```
 
 ## Building and Running

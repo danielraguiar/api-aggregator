@@ -128,7 +128,15 @@ The API implements Bean Validation (Jakarta Validation) for request parameters. 
 - `size`: Must be between 1 and 100
 - `source`: Must be a valid ContactSource enum value (KENECT_LABS)
 
-**Validation Error Response:**
+### Validation Error Examples
+
+#### 1. Invalid Page Number (Below Minimum)
+**Request:**
+```bash
+GET /contacts?page=0
+```
+
+**Response:**
 ```json
 {
   "timestamp": "2026-01-09T15:30:00.000Z",
@@ -139,11 +147,72 @@ The API implements Bean Validation (Jakarta Validation) for request parameters. 
 }
 ```
 
-**Example Validation Failures:**
+#### 2. Invalid Size (Exceeds Maximum)
+**Request:**
 ```bash
-GET /contacts?page=0           # Error: Page number must be greater than 0
-GET /contacts?size=150         # Error: Page size must not exceed 100
-GET /contacts?source=INVALID   # Error: Invalid enum value
+GET /contacts?size=150
+```
+
+**Response:**
+```json
+{
+  "timestamp": "2026-01-09T15:30:00.000Z",
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Invalid request parameters",
+  "details": "Page size must not exceed 100"
+}
+```
+
+#### 3. Invalid Source Enum Value
+**Request:**
+```bash
+GET /contacts?source=INVALID_SOURCE
+```
+
+**Response:**
+```json
+{
+  "timestamp": "2026-01-09T15:30:00.000Z",
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Invalid parameter type",
+  "details": "Invalid value 'INVALID_SOURCE' for parameter 'source'. Valid values are: KENECT_LABS"
+}
+```
+
+#### 4. Invalid Type (Non-Numeric for Page)
+**Request:**
+```bash
+GET /contacts?page=abc
+```
+
+**Response:**
+```json
+{
+  "timestamp": "2026-01-09T15:30:00.000Z",
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Invalid parameter type",
+  "details": "Invalid value 'abc' for parameter 'page'. Expected type: Integer"
+}
+```
+
+#### 5. Multiple Validation Errors
+**Request:**
+```bash
+GET /contacts?page=0&size=200
+```
+
+**Response:**
+```json
+{
+  "timestamp": "2026-01-09T15:30:00.000Z",
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Invalid request parameters",
+  "details": "Page number must be greater than 0, Page size must not exceed 100"
+}
 ```
 
 ## Health Check Endpoints

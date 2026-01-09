@@ -218,7 +218,7 @@ class ContactServiceTest {
     }
 
     @Test
-    void getContactsPaginated_ShouldReturnMiddlePage() {
+    void    getContactsPaginated_ShouldReturnMiddlePage() {
         PaginationMetadata pagination = PaginationMetadata.builder()
                 .currentPage(1)
                 .totalPages(2)

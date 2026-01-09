@@ -27,16 +27,51 @@ Production-ready Spring Boot REST API that aggregates contact information from e
 
 ### GET /contacts
 
-Returns paginated contacts from external sources.
+Returns contacts from external sources. Response format depends on whether pagination parameters are provided.
 
 **Query Parameters:**
-- `page` (optional, default: 1) - Page number (must be > 0)
-- `size` (optional, default: 20) - Items per page (1-100)
+- `page` (optional) - Page number (must be > 0)
+- `size` (optional) - Items per page (1-100)
 
-**Example Requests:**
+#### Without Pagination Parameters
+
+Returns **all contacts** in a flat array.
+
+**Example:**
 ```bash
 GET /contacts
-GET /contacts?page=2
+```
+
+**Response:**
+```json
+[
+  {
+    "id": 1,
+    "name": "Mrs. Willian Bradtke",
+    "email": "jerold@example.net",
+    "source": "KENECT_LABS",
+    "createdAt": "2020-06-24T19:37:16.688Z",
+    "updatedAt": "2020-06-24T19:37:16.688Z"
+  },
+  {
+    "id": 2,
+    "name": "John Doe",
+    "email": "john@example.net",
+    "source": "KENECT_LABS",
+    "createdAt": "2020-06-24T19:37:16.688Z",
+    "updatedAt": "2020-06-24T19:37:16.688Z"
+  }
+]
+```
+
+#### With Pagination Parameters
+
+Returns **paginated response** with metadata.
+
+**Examples:**
+```bash
+GET /contacts?page=1
+GET /contacts?size=10
 GET /contacts?page=2&size=10
 ```
 
@@ -64,7 +99,7 @@ GET /contacts?page=2&size=10
 }
 ```
 
-**Response Headers:**
+**Response Headers (Paginated only):**
 - `X-Total-Count` - Total number of contacts
 - `X-Total-Pages` - Total number of pages
 - `X-Current-Page` - Current page number

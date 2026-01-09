@@ -5,10 +5,12 @@ import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -68,6 +70,49 @@ public class GlobalExceptionHandler {
                 HttpStatus.BAD_REQUEST,
                 "Invalid request parameters",
                 details
+        );
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<Map<String, Object>> handleMethodArgumentTypeMismatchException(MethodArgumentTypeMismatchException ex) {
+        String paramName = ex.getName();
+        String providedValue = ex.getValue() != null ? ex.getValue().toString() : "null";
+        String requiredType = ex.getRequiredType() != null ? ex.getRequiredType().getSimpleName() : "unknown";
+        
+        String details;
+        if (ex.getRequiredType() != null && ex.getRequiredType().isEnum()) {
+            Object[] enumConstants = ex.getRequiredType().getEnumConstants();
+            String validValues = enumConstants != null ? 
+                    java.util.Arrays.stream(enumConstants)
+                            .map(Object::toString)
+                            .collect(Collectors.joining(", ")) : "";
+            
+            details = String.format(
+                    "Invalid value '%s' for parameter '%s'. Valid values are: %s",
+                    providedValue, paramName, validValues
+            );
+        } else {
+            details = String.format(
+                    "Invalid value '%s' for parameter '%s'. Expected type: %s",
+                    providedValue, paramName, requiredType
+            );
+        }
+        
+        log.warn("Type mismatch error: {}", details);
+        return buildErrorResponse(
+                HttpStatus.BAD_REQUEST,
+                "Invalid parameter type",
+                details
+        );
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, Object>> handleHttpMessageNotReadableException(HttpMessageNotReadableException ex) {
+        log.warn("Message not readable: {}", ex.getMessage());
+        return buildErrorResponse(
+                HttpStatus.BAD_REQUEST,
+                "Malformed request",
+                "Request body is not readable or contains invalid data"
         );
     }
 

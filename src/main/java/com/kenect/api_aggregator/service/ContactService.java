@@ -7,10 +7,14 @@ import com.kenect.api_aggregator.mapper.ContactMapper;
 import com.kenect.api_aggregator.model.Contact;
 import com.kenect.api_aggregator.model.ContactSource;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static com.kenect.api_aggregator.config.CacheConfig.CONTACTS_CACHE;
 
 @Slf4j
 @Service
@@ -24,8 +28,9 @@ public class ContactService {
         this.contactMapper = contactMapper;
     }
 
+    @Cacheable(value = CONTACTS_CACHE, key = "'all'")
     public List<Contact> getAllContacts() {
-        log.info("Starting to fetch all contacts from external API");
+        log.info("Cache miss - Starting to fetch all contacts from external API");
         long startTime = System.currentTimeMillis();
 
         List<Contact> allContacts = new ArrayList<>();
@@ -87,5 +92,10 @@ public class ContactService {
                 .isFirst(page == 1)
                 .isLast(page >= totalPages)
                 .build();
+    }
+
+    @CacheEvict(value = CONTACTS_CACHE, key = "'all'")
+    public void evictContactsCache() {
+        log.info("Evicting contacts cache");
     }
 }

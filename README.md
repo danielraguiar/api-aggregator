@@ -7,6 +7,7 @@ Production-ready Spring Boot REST API that aggregates contact information from e
 - REST endpoint with pagination support for retrieving contacts
 - Automatic external API pagination handling (RFC8288 standard)
 - Response pagination with configurable page size
+- In-memory caching to reduce external API calls
 - Comprehensive error handling and validation
 - Full test coverage (unit + integration tests)
 - Clean architecture with separation of concerns
@@ -17,6 +18,7 @@ Production-ready Spring Boot REST API that aggregates contact information from e
 - Java 17
 - Spring Boot 3.2.1
 - Spring WebFlux (WebClient)
+- Spring Cache + Caffeine
 - Lombok
 - JUnit 5 + Mockito
 - MockWebServer
@@ -76,7 +78,7 @@ GET /contacts?page=2&size=10
 ## Building and Running
 
 ### Prerequisites
-- Java 21+
+- Java 17+
 - Maven 3.6+
 
 ### Build
@@ -116,6 +118,26 @@ kenect:
       write: 30000
 ```
 
+## Caching
+
+The application uses Caffeine for in-memory caching to minimize external API calls and improve performance.
+
+**Cache Configuration:**
+- **TTL**: 5 minutes
+- **Max Size**: 100 entries
+- **Strategy**: Cache-aside pattern
+
+**Behavior:**
+- First request fetches from external API and caches result
+- Subsequent requests within 5 minutes return cached data
+- Cache automatically expires after TTL
+- Cache can be manually evicted if needed
+
+**Performance Impact:**
+- Reduces external API load
+- Improves response time for repeated queries
+- Maintains data freshness with TTL
+
 ## Architecture
 
 ```
@@ -138,6 +160,6 @@ exception/     Error handling
 
 ## Testing
 
-- **Unit Tests**: Mapper, Service, Controller, Client
+- **Unit Tests**: Mapper, Service, Controller, Client, Cache
 - **Integration Tests**: Full application flow
 - **Coverage**: All critical paths and edge cases

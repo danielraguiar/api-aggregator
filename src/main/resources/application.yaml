@@ -1,6 +1,10 @@
 spring:
   application:
     name: api-aggregator
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=100,expireAfterWrite=5m
 
 kenect:
   api:
@@ -18,3 +22,6 @@ logging:
   level:
     com.kenect.api_aggregator: INFO
     org.springframework.web: INFO
+
+cache:
+  enabled: true

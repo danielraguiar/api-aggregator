@@ -3,6 +3,7 @@ package com.kenect.api_aggregator.service;
 import com.kenect.api_aggregator.client.KenectLabsApiClient;
 import com.kenect.api_aggregator.dto.ExternalContactDto;
 import com.kenect.api_aggregator.dto.ExternalContactResponse;
+import com.kenect.api_aggregator.dto.PaginatedResponse;
 import com.kenect.api_aggregator.dto.PaginationMetadata;
 import com.kenect.api_aggregator.mapper.ContactMapper;
 import com.kenect.api_aggregator.model.Contact;
@@ -14,6 +15,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -184,5 +186,144 @@ class ContactServiceTest {
         assertNotNull(result);
         assertTrue(result.isEmpty());
         verify(apiClient, times(1)).fetchContactsPage(1);
+    }
+
+    @Test
+    void getContactsPaginated_ShouldReturnFirstPage() {
+        List<Contact> allContacts = createContactList(50);
+
+        PaginationMetadata pagination = PaginationMetadata.builder()
+                .currentPage(1)
+                .totalPages(3)
+                .totalCount(50)
+                .build();
+
+        ExternalContactResponse response = ExternalContactResponse.builder()
+                .contacts(List.of(externalContactDto1))
+                .pagination(pagination)
+                .build();
+
+        when(apiClient.fetchContactsPage(anyInt())).thenReturn(response);
+        when(contactMapper.toContact(any(), any())).thenReturn(contact1);
+
+        PaginatedResponse<Contact> result = contactService.getContactsPaginated(1, 20);
+
+        assertNotNull(result);
+        assertEquals(1, result.getPage());
+        assertEquals(20, result.getSize());
+        assertTrue(result.isFirst());
+        assertFalse(result.isLast());
+        assertTrue(result.isHasNext());
+        assertFalse(result.isHasPrevious());
+    }
+
+    @Test
+    void getContactsPaginated_ShouldReturnMiddlePage() {
+        PaginationMetadata pagination = PaginationMetadata.builder()
+                .currentPage(1)
+                .totalPages(2)
+                .totalCount(30)
+                .build();
+
+        ExternalContactResponse response = ExternalContactResponse.builder()
+                .contacts(List.of(externalContactDto1))
+                .pagination(pagination)
+                .build();
+
+        when(apiClient.fetchContactsPage(anyInt())).thenReturn(response);
+        when(contactMapper.toContact(any(), any())).thenReturn(contact1);
+
+        PaginatedResponse<Contact> result = contactService.getContactsPaginated(2, 10);
+
+        assertNotNull(result);
+        assertEquals(2, result.getPage());
+        assertEquals(10, result.getSize());
+        assertFalse(result.isFirst());
+        assertTrue(result.isHasPrevious());
+    }
+
+    @Test
+    void getContactsPaginated_ShouldReturnLastPage() {
+        PaginationMetadata pagination = PaginationMetadata.builder()
+                .currentPage(1)
+                .totalPages(1)
+                .totalCount(5)
+                .build();
+
+        ExternalContactResponse response = ExternalContactResponse.builder()
+                .contacts(List.of(externalContactDto1))
+                .pagination(pagination)
+                .build();
+
+        when(apiClient.fetchContactsPage(anyInt())).thenReturn(response);
+        when(contactMapper.toContact(any(), any())).thenReturn(contact1);
+
+        PaginatedResponse<Contact> result = contactService.getContactsPaginated(1, 20);
+
+        assertNotNull(result);
+        assertTrue(result.isLast());
+        assertFalse(result.isHasNext());
+    }
+
+    @Test
+    void getContactsPaginated_ShouldThrowException_WhenPageIsZero() {
+        assertThrows(IllegalArgumentException.class, () -> 
+            contactService.getContactsPaginated(0, 20));
+    }
+
+    @Test
+    void getContactsPaginated_ShouldThrowException_WhenPageIsNegative() {
+        assertThrows(IllegalArgumentException.class, () -> 
+            contactService.getContactsPaginated(-1, 20));
+    }
+
+    @Test
+    void getContactsPaginated_ShouldThrowException_WhenSizeIsZero() {
+        assertThrows(IllegalArgumentException.class, () -> 
+            contactService.getContactsPaginated(1, 0));
+    }
+
+    @Test
+    void getContactsPaginated_ShouldThrowException_WhenSizeExceedsLimit() {
+        assertThrows(IllegalArgumentException.class, () -> 
+            contactService.getContactsPaginated(1, 101));
+    }
+
+    @Test
+    void getContactsPaginated_ShouldReturnEmptyPage_WhenPageExceedsTotalPages() {
+        PaginationMetadata pagination = PaginationMetadata.builder()
+                .currentPage(1)
+                .totalPages(1)
+                .totalCount(5)
+                .build();
+
+        ExternalContactResponse response = ExternalContactResponse.builder()
+                .contacts(List.of(externalContactDto1))
+                .pagination(pagination)
+                .build();
+
+        when(apiClient.fetchContactsPage(anyInt())).thenReturn(response);
+        when(contactMapper.toContact(any(), any())).thenReturn(contact1);
+
+        PaginatedResponse<Contact> result = contactService.getContactsPaginated(10, 20);
+
+        assertNotNull(result);
+        assertTrue(result.getContent().isEmpty());
+        assertEquals(10, result.getPage());
+    }
+
+    private List<Contact> createContactList(int count) {
+        List<Contact> contacts = new ArrayList<>();
+        for (int i = 1; i <= count; i++) {
+            contacts.add(Contact.builder()
+                    .id((long) i)
+                    .name("Contact " + i)
+                    .email("contact" + i + "@example.com")
+                    .source("KENECT_LABS")
+                    .createdAt(Instant.now())
+                    .updatedAt(Instant.now())
+                    .build());
+        }
+        return contacts;
     }
 }

@@ -6,6 +6,19 @@ spring:
     caffeine:
       spec: maximumSize=100,expireAfterWrite=5m
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+  health:
+    defaults:
+      enabled: true
+
 kenect:
   api:
     base-url: https://candidate-challenge-api-489237493095.us-central1.run.app

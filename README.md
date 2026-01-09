@@ -123,15 +123,23 @@ kenect:
 The application uses Caffeine for in-memory caching to minimize external API calls and improve performance.
 
 **Cache Configuration:**
+- **Enabled**: Configurable via `cache.enabled` (default: `true`)
 - **TTL**: 5 minutes
 - **Max Size**: 100 entries
 - **Strategy**: Cache-aside pattern
+
+**Toggle Caching:**
+```yaml
+cache:
+  enabled: true  # Set to false to disable caching
+```
 
 **Behavior:**
 - First request fetches from external API and caches result
 - Subsequent requests within 5 minutes return cached data
 - Cache automatically expires after TTL
 - Cache can be manually evicted if needed
+- Disable caching for debugging or testing environments
 
 **Performance Impact:**
 - Reduces external API load

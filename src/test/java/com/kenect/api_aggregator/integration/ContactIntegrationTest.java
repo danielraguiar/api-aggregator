@@ -18,6 +18,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
 import java.io.IOException;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -57,7 +58,7 @@ class ContactIntegrationTest {
     }
 
     @Test
-    void getContacts_ShouldReturnAllContacts_WhenSinglePage() {
+    void getContacts_ShouldReturnFlatList_WhenNoParametersProvided() {
         String responseBody = """
                 [
                     {
@@ -86,26 +87,18 @@ class ContactIntegrationTest {
                 .addHeader("Total-Pages", "1")
                 .addHeader("Total-Count", "2"));
 
-        ResponseEntity<PaginatedResponse<Contact>> response = restTemplate.exchange(
+        ResponseEntity<List<Contact>> response = restTemplate.exchange(
                 "/contacts",
                 HttpMethod.GET,
                 null,
-                new ParameterizedTypeReference<PaginatedResponse<Contact>>() {}
+                new ParameterizedTypeReference<List<Contact>>() {}
         );
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertEquals(2, response.getBody().getContent().size());
-        assertEquals(1, response.getBody().getPage());
-        assertEquals(20, response.getBody().getSize());
-        assertEquals(2, response.getBody().getTotalElements());
-        assertEquals(1, response.getBody().getTotalPages());
-        assertTrue(response.getBody().isFirst());
-        assertTrue(response.getBody().isLast());
-        assertFalse(response.getBody().isHasNext());
-        assertFalse(response.getBody().isHasPrevious());
+        assertEquals(2, response.getBody().size());
 
-        Contact contact1 = response.getBody().getContent().get(0);
+        Contact contact1 = response.getBody().get(0);
         assertEquals(1L, contact1.getId());
         assertEquals("Mrs. Willian Bradtke", contact1.getName());
         assertEquals("jerold@example.net", contact1.getEmail());
@@ -113,7 +106,7 @@ class ContactIntegrationTest {
         assertNotNull(contact1.getCreatedAt());
         assertNotNull(contact1.getUpdatedAt());
 
-        Contact contact2 = response.getBody().getContent().get(1);
+        Contact contact2 = response.getBody().get(1);
         assertEquals(2L, contact2.getId());
         assertEquals("John Doe", contact2.getName());
         assertEquals("johndoe@example.net", contact2.getEmail());
@@ -165,19 +158,18 @@ class ContactIntegrationTest {
                 .addHeader("Total-Pages", "2")
                 .addHeader("Total-Count", "2"));
 
-        ResponseEntity<PaginatedResponse<Contact>> response = restTemplate.exchange(
+        ResponseEntity<List<Contact>> response = restTemplate.exchange(
                 "/contacts",
                 HttpMethod.GET,
                 null,
-                new ParameterizedTypeReference<PaginatedResponse<Contact>>() {}
+                new ParameterizedTypeReference<List<Contact>>() {}
         );
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertEquals(2, response.getBody().getContent().size());
-        assertEquals(2, response.getBody().getTotalElements());
-        assertEquals("Contact 1", response.getBody().getContent().get(0).getName());
-        assertEquals("Contact 2", response.getBody().getContent().get(1).getName());
+        assertEquals(2, response.getBody().size());
+        assertEquals("Contact 1", response.getBody().get(0).getName());
+        assertEquals("Contact 2", response.getBody().get(1).getName());
     }
 
     @Test
@@ -190,8 +182,50 @@ class ContactIntegrationTest {
                 .addHeader("Total-Pages", "1")
                 .addHeader("Total-Count", "0"));
 
-        ResponseEntity<PaginatedResponse<Contact>> response = restTemplate.exchange(
+        ResponseEntity<List<Contact>> response = restTemplate.exchange(
                 "/contacts",
+                HttpMethod.GET,
+                null,
+                new ParameterizedTypeReference<List<Contact>>() {}
+        );
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().isEmpty());
+    }
+
+    @Test
+    void getContacts_ShouldReturnPaginatedResponse_WhenParametersProvided() {
+        String responseBody = """
+                [
+                    {
+                        "id": 1,
+                        "name": "Mrs. Willian Bradtke",
+                        "email": "jerold@example.net",
+                        "created_at": "2020-06-24T19:37:16.688Z",
+                        "updated_at": "2020-06-24T19:37:16.688Z"
+                    },
+                    {
+                        "id": 2,
+                        "name": "John Doe",
+                        "email": "johndoe@example.net",
+                        "created_at": "2021-02-10T11:10:09.987Z",
+                        "updated_at": "2022-05-05T15:27:17.547Z"
+                    }
+                ]
+                """;
+
+        mockWebServer.enqueue(new MockResponse()
+                .setResponseCode(200)
+                .setBody(responseBody)
+                .addHeader("Content-Type", "application/json")
+                .addHeader("Current-Page", "1")
+                .addHeader("Page-Items", "20")
+                .addHeader("Total-Pages", "1")
+                .addHeader("Total-Count", "2"));
+
+        ResponseEntity<PaginatedResponse<Contact>> response = restTemplate.exchange(
+                "/contacts?page=1&size=20",
                 HttpMethod.GET,
                 null,
                 new ParameterizedTypeReference<PaginatedResponse<Contact>>() {}
@@ -199,8 +233,11 @@ class ContactIntegrationTest {
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertTrue(response.getBody().getContent().isEmpty());
-        assertEquals(0, response.getBody().getTotalElements());
+        assertEquals(2, response.getBody().getContent().size());
+        assertEquals(1, response.getBody().getPage());
+        assertEquals(20, response.getBody().getSize());
+        assertEquals(2, response.getBody().getTotalElements());
+        assertEquals(1, response.getBody().getTotalPages());
     }
 
     @Test

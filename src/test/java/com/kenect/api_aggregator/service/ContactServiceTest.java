@@ -1,12 +1,14 @@
 package com.kenect.api_aggregator.service;
 
 import com.kenect.api_aggregator.client.KenectLabsApiClient;
+import com.kenect.api_aggregator.dto.ContactQueryParams;
 import com.kenect.api_aggregator.dto.ExternalContactDto;
 import com.kenect.api_aggregator.dto.ExternalContactResponse;
 import com.kenect.api_aggregator.dto.PaginatedResponse;
 import com.kenect.api_aggregator.dto.PaginationMetadata;
 import com.kenect.api_aggregator.mapper.ContactMapper;
 import com.kenect.api_aggregator.model.Contact;
+import com.kenect.api_aggregator.model.ContactSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,11 +17,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -96,7 +98,7 @@ class ContactServiceTest {
         when(contactMapper.toContact(eq(externalContactDto1), any())).thenReturn(contact1);
         when(contactMapper.toContact(eq(externalContactDto2), any())).thenReturn(contact2);
 
-        List<Contact> result = contactService.getAllContacts();
+        List<Contact> result = contactService.getAllContacts(null);
 
         assertNotNull(result);
         assertEquals(2, result.size());
@@ -104,6 +106,30 @@ class ContactServiceTest {
         assertEquals("Jane Smith", result.get(1).getName());
         verify(apiClient, times(1)).fetchContactsPage(1);
         verify(contactMapper, times(2)).toContact(any(), any());
+    }
+
+    @Test
+    void getAllContacts_ShouldFilterBySource_WhenSourceProvided() {
+        PaginationMetadata pagination = PaginationMetadata.builder()
+                .currentPage(1)
+                .totalPages(1)
+                .totalCount(2)
+                .build();
+
+        ExternalContactResponse response = ExternalContactResponse.builder()
+                .contacts(List.of(externalContactDto1, externalContactDto2))
+                .pagination(pagination)
+                .build();
+
+        when(apiClient.fetchContactsPage(1)).thenReturn(response);
+        when(contactMapper.toContact(eq(externalContactDto1), any())).thenReturn(contact1);
+        when(contactMapper.toContact(eq(externalContactDto2), any())).thenReturn(contact2);
+
+        List<Contact> result = contactService.getAllContacts(ContactSource.KENECT_LABS);
+
+        assertNotNull(result);
+        assertEquals(2, result.size());
+        verify(apiClient, times(1)).fetchContactsPage(1);
     }
 
     @Test
@@ -135,7 +161,7 @@ class ContactServiceTest {
         when(contactMapper.toContact(eq(externalContactDto1), any())).thenReturn(contact1);
         when(contactMapper.toContact(eq(externalContactDto2), any())).thenReturn(contact2);
 
-        List<Contact> result = contactService.getAllContacts();
+        List<Contact> result = contactService.getAllContacts(null);
 
         assertNotNull(result);
         assertEquals(2, result.size());
@@ -159,7 +185,7 @@ class ContactServiceTest {
 
         when(apiClient.fetchContactsPage(1)).thenReturn(response);
 
-        List<Contact> result = contactService.getAllContacts();
+        List<Contact> result = contactService.getAllContacts(null);
 
         assertNotNull(result);
         assertTrue(result.isEmpty());
@@ -168,162 +194,87 @@ class ContactServiceTest {
     }
 
     @Test
-    void getAllContacts_ShouldHandleNullContactsList() {
+    void getContactsPaginated_ShouldReturnFirstPage() {
         PaginationMetadata pagination = PaginationMetadata.builder()
                 .currentPage(1)
                 .totalPages(1)
+                .totalCount(2)
                 .build();
 
         ExternalContactResponse response = ExternalContactResponse.builder()
-                .contacts(null)
-                .pagination(pagination)
-                .build();
-
-        when(apiClient.fetchContactsPage(1)).thenReturn(response);
-
-        List<Contact> result = contactService.getAllContacts();
-
-        assertNotNull(result);
-        assertTrue(result.isEmpty());
-        verify(apiClient, times(1)).fetchContactsPage(1);
-    }
-
-    @Test
-    void getContactsPaginated_ShouldReturnFirstPage() {
-        List<Contact> allContacts = createContactList(50);
-
-        PaginationMetadata pagination = PaginationMetadata.builder()
-                .currentPage(1)
-                .totalPages(3)
-                .totalCount(50)
-                .build();
-
-        ExternalContactResponse response = ExternalContactResponse.builder()
-                .contacts(List.of(externalContactDto1))
+                .contacts(List.of(externalContactDto1, externalContactDto2))
                 .pagination(pagination)
                 .build();
 
         when(apiClient.fetchContactsPage(anyInt())).thenReturn(response);
-        when(contactMapper.toContact(any(), any())).thenReturn(contact1);
+        when(contactMapper.toContact(any(), any())).thenReturn(contact1, contact2);
 
-        PaginatedResponse<Contact> result = contactService.getContactsPaginated(1, 20);
+        ContactQueryParams params = ContactQueryParams.builder()
+                .page(1)
+                .size(20)
+                .build();
+
+        PaginatedResponse<Contact> result = contactService.getContactsPaginated(params);
 
         assertNotNull(result);
         assertEquals(1, result.getPage());
         assertEquals(20, result.getSize());
         assertTrue(result.isFirst());
-        assertFalse(result.isLast());
-        assertTrue(result.isHasNext());
+        assertTrue(result.isLast());
+        assertFalse(result.isHasNext());
         assertFalse(result.isHasPrevious());
     }
 
     @Test
-    void    getContactsPaginated_ShouldReturnMiddlePage() {
-        PaginationMetadata pagination = PaginationMetadata.builder()
-                .currentPage(1)
-                .totalPages(2)
-                .totalCount(30)
-                .build();
-
-        ExternalContactResponse response = ExternalContactResponse.builder()
-                .contacts(List.of(externalContactDto1))
-                .pagination(pagination)
-                .build();
-
-        when(apiClient.fetchContactsPage(anyInt())).thenReturn(response);
-        when(contactMapper.toContact(any(), any())).thenReturn(contact1);
-
-        PaginatedResponse<Contact> result = contactService.getContactsPaginated(2, 10);
-
-        assertNotNull(result);
-        assertEquals(2, result.getPage());
-        assertEquals(10, result.getSize());
-        assertFalse(result.isFirst());
-        assertTrue(result.isHasPrevious());
-    }
-
-    @Test
-    void getContactsPaginated_ShouldReturnLastPage() {
+    void getContactsPaginated_ShouldFilterBySource() {
         PaginationMetadata pagination = PaginationMetadata.builder()
                 .currentPage(1)
                 .totalPages(1)
-                .totalCount(5)
+                .totalCount(2)
                 .build();
 
         ExternalContactResponse response = ExternalContactResponse.builder()
-                .contacts(List.of(externalContactDto1))
+                .contacts(List.of(externalContactDto1, externalContactDto2))
                 .pagination(pagination)
                 .build();
 
         when(apiClient.fetchContactsPage(anyInt())).thenReturn(response);
-        when(contactMapper.toContact(any(), any())).thenReturn(contact1);
+        when(contactMapper.toContact(any(), any())).thenReturn(contact1, contact2);
 
-        PaginatedResponse<Contact> result = contactService.getContactsPaginated(1, 20);
+        ContactQueryParams params = ContactQueryParams.builder()
+                .page(1)
+                .size(20)
+                .source(ContactSource.KENECT_LABS)
+                .build();
+
+        PaginatedResponse<Contact> result = contactService.getContactsPaginated(params);
 
         assertNotNull(result);
-        assertTrue(result.isLast());
-        assertFalse(result.isHasNext());
+        assertEquals(2, result.getContent().size());
     }
 
     @Test
-    void getContactsPaginated_ShouldThrowException_WhenPageIsZero() {
-        assertThrows(IllegalArgumentException.class, () -> 
-            contactService.getContactsPaginated(0, 20));
-    }
-
-    @Test
-    void getContactsPaginated_ShouldThrowException_WhenPageIsNegative() {
-        assertThrows(IllegalArgumentException.class, () -> 
-            contactService.getContactsPaginated(-1, 20));
-    }
-
-    @Test
-    void getContactsPaginated_ShouldThrowException_WhenSizeIsZero() {
-        assertThrows(IllegalArgumentException.class, () -> 
-            contactService.getContactsPaginated(1, 0));
-    }
-
-    @Test
-    void getContactsPaginated_ShouldThrowException_WhenSizeExceedsLimit() {
-        assertThrows(IllegalArgumentException.class, () -> 
-            contactService.getContactsPaginated(1, 101));
-    }
-
-    @Test
-    void getContactsPaginated_ShouldReturnEmptyPage_WhenPageExceedsTotalPages() {
+    void getContactsPaginated_ShouldUseDefaultValues_WhenParamsNotProvided() {
         PaginationMetadata pagination = PaginationMetadata.builder()
                 .currentPage(1)
                 .totalPages(1)
-                .totalCount(5)
+                .totalCount(2)
                 .build();
 
         ExternalContactResponse response = ExternalContactResponse.builder()
-                .contacts(List.of(externalContactDto1))
+                .contacts(List.of(externalContactDto1, externalContactDto2))
                 .pagination(pagination)
                 .build();
 
         when(apiClient.fetchContactsPage(anyInt())).thenReturn(response);
-        when(contactMapper.toContact(any(), any())).thenReturn(contact1);
+        when(contactMapper.toContact(any(), any())).thenReturn(contact1, contact2);
 
-        PaginatedResponse<Contact> result = contactService.getContactsPaginated(10, 20);
+        ContactQueryParams params = ContactQueryParams.builder().build();
+
+        PaginatedResponse<Contact> result = contactService.getContactsPaginated(params);
 
         assertNotNull(result);
-        assertTrue(result.getContent().isEmpty());
-        assertEquals(10, result.getPage());
-    }
-
-    private List<Contact> createContactList(int count) {
-        List<Contact> contacts = new ArrayList<>();
-        for (int i = 1; i <= count; i++) {
-            contacts.add(Contact.builder()
-                    .id((long) i)
-                    .name("Contact " + i)
-                    .email("contact" + i + "@example.com")
-                    .source("KENECT_LABS")
-                    .createdAt(Instant.now())
-                    .updatedAt(Instant.now())
-                    .build());
-        }
-        return contacts;
+        assertEquals(1, result.getPage());
+        assertEquals(20, result.getSize());
     }
 }

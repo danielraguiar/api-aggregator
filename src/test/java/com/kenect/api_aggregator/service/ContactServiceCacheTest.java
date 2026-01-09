@@ -71,9 +71,9 @@ class ContactServiceCacheTest {
         when(apiClient.fetchContactsPage(1)).thenReturn(response);
         when(contactMapper.toContact(eq(externalContactDto), any(ContactSource.class))).thenReturn(contact);
 
-        List<Contact> firstCall = contactService.getAllContacts();
-        List<Contact> secondCall = contactService.getAllContacts();
-        List<Contact> thirdCall = contactService.getAllContacts();
+        List<Contact> firstCall = contactService.getAllContacts(null);
+        List<Contact> secondCall = contactService.getAllContacts(null);
+        List<Contact> thirdCall = contactService.getAllContacts(null);
 
         assertNotNull(firstCall);
         assertNotNull(secondCall);
@@ -121,13 +121,13 @@ class ContactServiceCacheTest {
         when(apiClient.fetchContactsPage(1)).thenReturn(response);
         when(contactMapper.toContact(eq(externalContactDto), any(ContactSource.class))).thenReturn(contact);
 
-        contactService.getAllContacts();
+        contactService.getAllContacts(null);
 
         verify(apiClient, times(1)).fetchContactsPage(1);
 
         contactService.evictContactsCache();
 
-        contactService.getAllContacts();
+        contactService.getAllContacts(null);
 
         verify(apiClient, times(2)).fetchContactsPage(1);
     }

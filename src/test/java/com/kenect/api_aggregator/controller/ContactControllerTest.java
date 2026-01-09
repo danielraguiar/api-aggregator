@@ -1,9 +1,11 @@
 package com.kenect.api_aggregator.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kenect.api_aggregator.dto.ContactQueryParams;
 import com.kenect.api_aggregator.dto.PaginatedResponse;
 import com.kenect.api_aggregator.exception.ExternalApiException;
 import com.kenect.api_aggregator.model.Contact;
+import com.kenect.api_aggregator.model.ContactSource;
 import com.kenect.api_aggregator.service.ContactService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,7 +18,8 @@ import java.time.Instant;
 import java.util.List;
 
 import static org.hamcrest.Matchers.hasSize;
-import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -55,7 +58,7 @@ class ContactControllerTest {
                 .updatedAt(now)
                 .build();
 
-        when(contactService.getAllContacts()).thenReturn(List.of(contact1, contact2));
+        when(contactService.getAllContacts(isNull())).thenReturn(List.of(contact1, contact2));
 
         mockMvc.perform(get("/contacts")
                         .contentType(MediaType.APPLICATION_JSON))
@@ -74,7 +77,7 @@ class ContactControllerTest {
 
     @Test
     void getAllContacts_ShouldReturnEmptyFlatList_WhenNoContactsExist() throws Exception {
-        when(contactService.getAllContacts()).thenReturn(List.of());
+        when(contactService.getAllContacts(isNull())).thenReturn(List.of());
 
         mockMvc.perform(get("/contacts")
                         .contentType(MediaType.APPLICATION_JSON))
@@ -85,7 +88,7 @@ class ContactControllerTest {
 
     @Test
     void getAllContacts_ShouldReturnBadGateway_WhenExternalApiException() throws Exception {
-        when(contactService.getAllContacts())
+        when(contactService.getAllContacts(isNull()))
                 .thenThrow(new ExternalApiException("External API is unavailable"));
 
         mockMvc.perform(get("/contacts")
@@ -97,7 +100,7 @@ class ContactControllerTest {
 
     @Test
     void getAllContacts_ShouldReturnInternalServerError_WhenUnexpectedException() throws Exception {
-        when(contactService.getAllContacts())
+        when(contactService.getAllContacts(isNull()))
                 .thenThrow(new RuntimeException("Unexpected error"));
 
         mockMvc.perform(get("/contacts")
@@ -132,7 +135,7 @@ class ContactControllerTest {
                 .isLast(true)
                 .build();
 
-        when(contactService.getContactsPaginated(1, 20)).thenReturn(response);
+        when(contactService.getContactsPaginated(any(ContactQueryParams.class))).thenReturn(response);
 
         mockMvc.perform(get("/contacts")
                         .param("page", "1")
@@ -173,7 +176,7 @@ class ContactControllerTest {
                 .isLast(true)
                 .build();
 
-        when(contactService.getContactsPaginated(1, 10)).thenReturn(response);
+        when(contactService.getContactsPaginated(any(ContactQueryParams.class))).thenReturn(response);
 
         mockMvc.perform(get("/contacts")
                         .param("size", "10")
@@ -209,7 +212,7 @@ class ContactControllerTest {
                 .isLast(false)
                 .build();
 
-        when(contactService.getContactsPaginated(2, 10)).thenReturn(response);
+        when(contactService.getContactsPaginated(any(ContactQueryParams.class))).thenReturn(response);
 
         mockMvc.perform(get("/contacts")
                         .param("page", "2")
@@ -225,15 +228,61 @@ class ContactControllerTest {
     }
 
     @Test
-    void getAllContacts_ShouldReturnBadRequest_WhenInvalidPageParameter() throws Exception {
-        when(contactService.getContactsPaginated(0, 20))
-                .thenThrow(new IllegalArgumentException("Page number must be greater than 0"));
+    void getAllContacts_ShouldFilterBySource_WhenSourceParameterProvided() throws Exception {
+        Instant now = Instant.parse("2020-06-24T19:37:16.688Z");
+
+        Contact contact = Contact.builder()
+                .id(1L)
+                .name("Mrs. Willian Bradtke")
+                .email("jerold@example.net")
+                .source("KENECT_LABS")
+                .createdAt(now)
+                .updatedAt(now)
+                .build();
+
+        when(contactService.getAllContacts(ContactSource.KENECT_LABS)).thenReturn(List.of(contact));
 
         mockMvc.perform(get("/contacts")
-                        .param("page", "0")
+                        .param("source", "KENECT_LABS")
                         .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.message").value("Invalid request parameters"));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].source").value("KENECT_LABS"));
+    }
+
+    @Test
+    void getAllContacts_ShouldFilterBySourceInPagination_WhenBothProvided() throws Exception {
+        Instant now = Instant.parse("2020-06-24T19:37:16.688Z");
+
+        Contact contact = Contact.builder()
+                .id(1L)
+                .name("Mrs. Willian Bradtke")
+                .email("jerold@example.net")
+                .source("KENECT_LABS")
+                .createdAt(now)
+                .updatedAt(now)
+                .build();
+
+        PaginatedResponse<Contact> response = PaginatedResponse.<Contact>builder()
+                .content(List.of(contact))
+                .page(1)
+                .size(20)
+                .totalElements(1)
+                .totalPages(1)
+                .hasNext(false)
+                .hasPrevious(false)
+                .isFirst(true)
+                .isLast(true)
+                .build();
+
+        when(contactService.getContactsPaginated(any(ContactQueryParams.class))).thenReturn(response);
+
+        mockMvc.perform(get("/contacts")
+                        .param("page", "1")
+                        .param("source", "KENECT_LABS")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(1)))
+                .andExpect(jsonPath("$.content[0].source").value("KENECT_LABS"));
     }
 }

@@ -1,6 +1,7 @@
 package com.kenect.api_aggregator.service;
 
 import com.kenect.api_aggregator.client.KenectLabsApiClient;
+import com.kenect.api_aggregator.dto.ContactQueryParams;
 import com.kenect.api_aggregator.dto.ExternalContactResponse;
 import com.kenect.api_aggregator.dto.PaginatedResponse;
 import com.kenect.api_aggregator.mapper.ContactMapper;
@@ -29,7 +30,7 @@ public class ContactService {
     }
 
     @Cacheable(value = CONTACTS_CACHE, key = "'all'")
-    public List<Contact> getAllContacts() {
+    public List<Contact> fetchAllContacts() {
         log.info("Cache miss - Starting to fetch all contacts from external API");
         long startTime = System.currentTimeMillis();
 
@@ -59,17 +60,27 @@ public class ContactService {
         return allContacts;
     }
 
-    public PaginatedResponse<Contact> getContactsPaginated(int page, int size) {
-        if (page < 1) {
-            throw new IllegalArgumentException("Page number must be greater than 0");
-        }
-        if (size < 1 || size > 100) {
-            throw new IllegalArgumentException("Page size must be between 1 and 100");
-        }
-
-        log.info("Fetching paginated contacts - page: {}, size: {}", page, size);
+    public List<Contact> getAllContacts(ContactSource source) {
+        List<Contact> allContacts = fetchAllContacts();
         
-        List<Contact> allContacts = getAllContacts();
+        if (source != null) {
+            log.debug("Filtering contacts by source: {}", source);
+            return allContacts.stream()
+                    .filter(contact -> source.getValue().equals(contact.getSource()))
+                    .toList();
+        }
+        
+        return allContacts;
+    }
+
+    public PaginatedResponse<Contact> getContactsPaginated(ContactQueryParams params) {
+        int page = params.getPageOrDefault();
+        int size = params.getSizeOrDefault();
+        ContactSource source = params.getSource();
+        
+        log.info("Fetching paginated contacts - page: {}, size: {}, source: {}", page, size, source);
+        
+        List<Contact> allContacts = getAllContacts(source);
         
         int totalElements = allContacts.size();
         int totalPages = (int) Math.ceil((double) totalElements / size);

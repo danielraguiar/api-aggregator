@@ -7,8 +7,10 @@ Production-ready Spring Boot REST API that aggregates contact information from e
 - REST endpoint with pagination support for retrieving contacts
 - Automatic external API pagination handling (RFC8288 standard)
 - Response pagination with configurable page size
+- Source filtering (extensible for multiple sources)
+- Bean Validation (Jakarta Validation) for input parameters
 - In-memory caching to reduce external API calls
-- Comprehensive error handling and validation
+- Comprehensive error handling with detailed validation messages
 - Full test coverage (unit + integration tests)
 - Clean architecture with separation of concerns
 - Production-ready configuration
@@ -30,16 +32,18 @@ Production-ready Spring Boot REST API that aggregates contact information from e
 Returns contacts from external sources. Response format depends on whether pagination parameters are provided.
 
 **Query Parameters:**
-- `page` (optional) - Page number (must be > 0)
-- `size` (optional) - Items per page (1-100)
+- `page` (optional) - Page number (validated: must be ≥ 1)
+- `size` (optional) - Items per page (validated: must be between 1-100)
+- `source` (optional) - Filter by contact source (enum: KENECT_LABS)
 
 #### Without Pagination Parameters
 
 Returns **all contacts** in a flat array.
 
-**Example:**
+**Examples:**
 ```bash
 GET /contacts
+GET /contacts?source=KENECT_LABS
 ```
 
 **Response:**
@@ -73,6 +77,7 @@ Returns **paginated response** with metadata.
 GET /contacts?page=1
 GET /contacts?size=10
 GET /contacts?page=2&size=10
+GET /contacts?page=1&source=KENECT_LABS
 ```
 
 **Response:**
@@ -106,9 +111,36 @@ GET /contacts?page=2&size=10
 
 **Status Codes:**
 - `200 OK` - Successfully retrieved contacts
-- `400 Bad Request` - Invalid pagination parameters
+- `400 Bad Request` - Invalid request parameters (validation failure)
 - `502 Bad Gateway` - External API unavailable
 - `500 Internal Server Error` - Unexpected error
+
+## Input Validation
+
+The API implements Bean Validation (Jakarta Validation) for request parameters. Validation rules are defined in the `ContactQueryParams` DTO, not in the controller layer.
+
+**Validation Rules:**
+- `page`: Must be greater than or equal to 1
+- `size`: Must be between 1 and 100
+- `source`: Must be a valid ContactSource enum value (KENECT_LABS)
+
+**Validation Error Response:**
+```json
+{
+  "timestamp": "2026-01-09T15:30:00.000Z",
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Invalid request parameters",
+  "details": "Page number must be greater than 0"
+}
+```
+
+**Example Validation Failures:**
+```bash
+GET /contacts?page=0           # Error: Page number must be greater than 0
+GET /contacts?size=150         # Error: Page size must not exceed 100
+GET /contacts?source=INVALID   # Error: Invalid enum value
+```
 
 ## Building and Running
 

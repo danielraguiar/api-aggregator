@@ -4,17 +4,18 @@ Production-ready Spring Boot REST API that aggregates contact information from e
 
 ## Features
 
-- REST endpoint for retrieving aggregated contacts
-- Automatic pagination handling (RFC8288 standard)
-- Comprehensive error handling
+- REST endpoint with pagination support for retrieving contacts
+- Automatic external API pagination handling (RFC8288 standard)
+- Response pagination with configurable page size
+- Comprehensive error handling and validation
 - Full test coverage (unit + integration tests)
 - Clean architecture with separation of concerns
 - Production-ready configuration
 
 ## Tech Stack
 
-- Java 21
-- Spring Boot 4.0.1
+- Java 17
+- Spring Boot 3.2.1
 - Spring WebFlux (WebClient)
 - Lombok
 - JUnit 5 + Mockito
@@ -24,24 +25,51 @@ Production-ready Spring Boot REST API that aggregates contact information from e
 
 ### GET /contacts
 
-Returns all contacts from external sources.
+Returns paginated contacts from external sources.
+
+**Query Parameters:**
+- `page` (optional, default: 1) - Page number (must be > 0)
+- `size` (optional, default: 20) - Items per page (1-100)
+
+**Example Requests:**
+```bash
+GET /contacts
+GET /contacts?page=2
+GET /contacts?page=2&size=10
+```
 
 **Response:**
 ```json
-[
-  {
-    "id": 1,
-    "name": "Mrs. Willian Bradtke",
-    "email": "jerold@example.net",
-    "source": "KENECT_LABS",
-    "createdAt": "2020-06-24T19:37:16.688Z",
-    "updatedAt": "2020-06-24T19:37:16.688Z"
-  }
-]
+{
+  "content": [
+    {
+      "id": 1,
+      "name": "Mrs. Willian Bradtke",
+      "email": "jerold@example.net",
+      "source": "KENECT_LABS",
+      "createdAt": "2020-06-24T19:37:16.688Z",
+      "updatedAt": "2020-06-24T19:37:16.688Z"
+    }
+  ],
+  "page": 1,
+  "size": 20,
+  "totalElements": 100,
+  "totalPages": 5,
+  "hasNext": true,
+  "hasPrevious": false,
+  "isFirst": true,
+  "isLast": false
+}
 ```
+
+**Response Headers:**
+- `X-Total-Count` - Total number of contacts
+- `X-Total-Pages` - Total number of pages
+- `X-Current-Page` - Current page number
 
 **Status Codes:**
 - `200 OK` - Successfully retrieved contacts
+- `400 Bad Request` - Invalid pagination parameters
 - `502 Bad Gateway` - External API unavailable
 - `500 Internal Server Error` - Unexpected error
 

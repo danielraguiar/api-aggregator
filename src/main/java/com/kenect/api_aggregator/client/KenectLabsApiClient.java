@@ -8,6 +8,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Recover;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
@@ -30,8 +33,13 @@ public class KenectLabsApiClient {
         this.webClient = webClient;
     }
 
+    @Retryable(
+            retryFor = {WebClientResponseException.class, ExternalApiException.class},
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 1000, multiplier = 2.0, maxDelay = 5000)
+    )
     public ExternalContactResponse fetchContactsPage(int page) {
-        log.debug("Fetching contacts page: {}", page);
+        log.debug("Fetching contacts page: {} (with retry support)", page);
 
         try {
             var response = webClient.get()
@@ -66,6 +74,15 @@ public class KenectLabsApiClient {
             log.error("Unexpected error while fetching contacts: {}", ex.getMessage(), ex);
             throw new ExternalApiException("Unexpected error while communicating with external API", ex);
         }
+    }
+
+    @Recover
+    public ExternalContactResponse recoverFromApiFailure(Exception ex, int page) {
+        log.error("All retry attempts exhausted for page {}. Failing gracefully.", page, ex);
+        throw new ExternalApiException(
+                "Failed to fetch contacts after multiple retry attempts for page " + page,
+                ex
+        );
     }
 
     private PaginationMetadata parsePaginationHeaders(HttpHeaders headers) {

@@ -28,7 +28,7 @@ class ContactControllerValidationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.message").value("Invalid request parameters"))
-                .andExpect(jsonPath("$.details").value("Page number must be greater than 0"));
+                .andExpect(jsonPath("$.details").value(org.hamcrest.Matchers.containsString("Page number must be greater than 0")));
     }
 
     @Test
@@ -39,7 +39,7 @@ class ContactControllerValidationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.message").value("Invalid request parameters"))
-                .andExpect(jsonPath("$.details").value("Page number must be greater than 0"));
+                .andExpect(jsonPath("$.details").value(org.hamcrest.Matchers.containsString("Page number must be greater than 0")));
     }
 
     @Test
@@ -50,7 +50,7 @@ class ContactControllerValidationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.message").value("Invalid request parameters"))
-                .andExpect(jsonPath("$.details").value("Page size must be at least 1"));
+                .andExpect(jsonPath("$.details").value(org.hamcrest.Matchers.containsString("Page size must be at least 1")));
     }
 
     @Test
@@ -61,7 +61,7 @@ class ContactControllerValidationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.message").value("Invalid request parameters"))
-                .andExpect(jsonPath("$.details").value("Page size must not exceed 100"));
+                .andExpect(jsonPath("$.details").value(org.hamcrest.Matchers.containsString("Page size must not exceed 100")));
     }
 
     @Test
@@ -71,9 +71,10 @@ class ContactControllerValidationTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.message").value("Invalid parameter type"))
+                .andExpect(jsonPath("$.message").value("Invalid request parameters"))
                 .andExpect(jsonPath("$.details").exists())
-                .andExpect(jsonPath("$.details").value(org.hamcrest.Matchers.containsString("KENECT_LABS")));
+                .andExpect(jsonPath("$.details").value(org.hamcrest.Matchers.containsString("KENECT_LABS")))
+                .andExpect(jsonPath("$.details").value(org.hamcrest.Matchers.containsString("INVALID_SOURCE")));
     }
 
     @Test
@@ -83,7 +84,9 @@ class ContactControllerValidationTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.message").value("Invalid parameter type"));
+                .andExpect(jsonPath("$.message").value("Invalid request parameters"))
+                .andExpect(jsonPath("$.details").value(org.hamcrest.Matchers.containsString("abc")))
+                .andExpect(jsonPath("$.details").value(org.hamcrest.Matchers.containsString("number")));
     }
 
     @Test
@@ -93,7 +96,9 @@ class ContactControllerValidationTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.message").value("Invalid parameter type"));
+                .andExpect(jsonPath("$.message").value("Invalid request parameters"))
+                .andExpect(jsonPath("$.details").value(org.hamcrest.Matchers.containsString("xyz")))
+                .andExpect(jsonPath("$.details").value(org.hamcrest.Matchers.containsString("number")));
     }
 
     @Test

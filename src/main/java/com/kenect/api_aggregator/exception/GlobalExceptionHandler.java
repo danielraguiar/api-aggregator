@@ -48,7 +48,18 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HandlerMethodValidationException.class)
     public ResponseEntity<Map<String, Object>> handleHandlerMethodValidationException(HandlerMethodValidationException ex) {
         String details = ex.getAllErrors().stream()
-                .map(error -> error.getDefaultMessage() != null ? error.getDefaultMessage() : "Validation failed")
+                .map(error -> {
+                    String defaultMessage = error.getDefaultMessage();
+                    if (defaultMessage == null) {
+                        return "Validation failed";
+                    }
+                    
+                    if (defaultMessage.contains("Failed to convert property value")) {
+                        return extractUserFriendlyMessage(defaultMessage);
+                    }
+                    
+                    return defaultMessage;
+                })
                 .collect(Collectors.joining(", "));
         
         log.warn("Validation error: {}", details);
@@ -62,7 +73,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleMethodArgumentNotValidException(MethodArgumentNotValidException ex) {
         String details = ex.getBindingResult().getFieldErrors().stream()
-                .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                .map(error -> {
+                    String defaultMessage = error.getDefaultMessage();
+                    if (defaultMessage != null && defaultMessage.contains("Failed to convert property value")) {
+                        return extractUserFriendlyMessage(defaultMessage);
+                    }
+                    return defaultMessage != null ? defaultMessage : "Validation failed";
+                })
                 .collect(Collectors.joining(", "));
         
         log.warn("Validation error: {}", details);
@@ -134,6 +151,71 @@ public class GlobalExceptionHandler {
                 "An unexpected error occurred",
                 ex.getMessage()
         );
+    }
+
+    private String extractUserFriendlyMessage(String errorMessage) {
+        try {
+            if (errorMessage.contains("ContactSource")) {
+                String paramName = extractParameterName(errorMessage);
+                String invalidValue = extractInvalidValue(errorMessage);
+                return String.format(
+                        "Invalid value '%s' for parameter '%s'. Valid values are: KENECT_LABS",
+                        invalidValue, paramName
+                );
+            }
+            
+            if (errorMessage.contains("Integer")) {
+                String paramName = extractParameterName(errorMessage);
+                String invalidValue = extractInvalidValue(errorMessage);
+                return String.format(
+                        "Invalid value '%s' for parameter '%s'. Expected a number",
+                        invalidValue, paramName
+                );
+            }
+            
+            String paramName = extractParameterName(errorMessage);
+            if (!paramName.isEmpty()) {
+                return String.format("Invalid value for parameter '%s'", paramName);
+            }
+        } catch (Exception e) {
+            log.debug("Could not extract user-friendly message from: {}", errorMessage);
+        }
+        
+        return "Invalid parameter value";
+    }
+    
+    private String extractParameterName(String errorMessage) {
+        int propertyIndex = errorMessage.indexOf("for property '");
+        if (propertyIndex != -1) {
+            int startIndex = propertyIndex + 14;
+            int endIndex = errorMessage.indexOf("'", startIndex);
+            if (endIndex != -1) {
+                return errorMessage.substring(startIndex, endIndex);
+            }
+        }
+        return "";
+    }
+    
+    private String extractInvalidValue(String errorMessage) {
+        int valueIndex = errorMessage.indexOf("for value [");
+        if (valueIndex != -1) {
+            int startIndex = valueIndex + 11;
+            int endIndex = errorMessage.indexOf("]", startIndex);
+            if (endIndex != -1) {
+                return errorMessage.substring(startIndex, endIndex);
+            }
+        }
+        
+        int stringIndex = errorMessage.indexOf("For input string: \"");
+        if (stringIndex != -1) {
+            int startIndex = stringIndex + 19;
+            int endIndex = errorMessage.indexOf("\"", startIndex);
+            if (endIndex != -1) {
+                return errorMessage.substring(startIndex, endIndex);
+            }
+        }
+        
+        return "unknown";
     }
 
     private ResponseEntity<Map<String, Object>> buildErrorResponse(

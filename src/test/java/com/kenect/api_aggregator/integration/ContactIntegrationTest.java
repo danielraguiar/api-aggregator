@@ -3,7 +3,7 @@ package com.kenect.api_aggregator.integration;
 import com.kenect.api_aggregator.model.Contact;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,8 +49,8 @@ class ContactIntegrationTest {
         }
     }
 
-    @AfterEach
-    void tearDown() throws IOException {
+    @AfterAll
+    static void tearDownAll() throws IOException {
         if (mockWebServer != null) {
             mockWebServer.shutdown();
         }
